@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyrox Crew — Training Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink: #1C1917;
+  --paper: #F7F4EF;
+  --paper2: #EDE9E2;
+  --muted: #9C9489;
+  --faint: #D6D0C6;
+  --hyrox: #7A3A2A;      --hyrox-light: #F5EAE6;  --hyrox-mid: #C87A5A;
+  --run:   #3B5F7A;      --run-light: #E4EDF4;    --run-mid: #6A9AB8;
+  --other: #6B5A28;      --other-light: #F5F0DC;  --other-mid: #C4A84A;
+}
+body { font-family: 'Geist Mono', monospace; background: var(--paper); color: var(--ink); min-height: 100vh; font-size: 11px; }
+
+/* ── HEADER ── */
+header { padding: 20px 28px 16px; border-bottom: 1px solid var(--faint); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: var(--paper); }
+.wordmark { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; font-style: italic; }
+.wordmark span { font-style: normal; font-weight: 500; color: var(--muted); font-size: 11px; margin-left: 10px; letter-spacing: 1.5px; text-transform: uppercase; vertical-align: middle; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-toggle { padding: 5px 12px; font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; border: 1px solid var(--faint); background: transparent; color: var(--muted); cursor: pointer; border-radius: 3px; transition: all 0.12s; }
+.admin-toggle:hover, .admin-toggle.on { border-color: var(--ink); color: var(--ink); background: var(--paper2); }
+.add-event-btn { padding: 5px 14px; font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; border-radius: 3px; transition: opacity 0.12s; display: none; }
+.add-event-btn:hover { opacity: 0.8; }
+.add-event-btn.visible { display: inline-block; }
+
+/* ── LEGEND ── */
+.legend-bar { padding: 8px 28px; border-bottom: 1px solid var(--faint); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.leg-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── MONTH NAV ── */
+.month-nav { padding: 12px 28px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--faint); }
+.month-nav button { padding: 3px 10px; font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; border: 1px solid var(--faint); background: transparent; color: var(--muted); cursor: pointer; border-radius: 3px; transition: all 0.12s; }
+.month-nav button:hover { border-color: var(--ink); color: var(--ink); }
+.month-label { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; letter-spacing: 0.5px; }
+.today-btn { margin-left: auto; }
+.event-count { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+
+/* ── CALENDAR GRID ── */
+.cal-wrap { padding: 0 28px 40px; overflow: auto; }
+.dow-header { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid var(--faint); border-top: 1px solid var(--faint); margin-top: 0; }
+.dow-cell { padding: 8px 6px 6px; border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); text-align: center; background: var(--paper); }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid var(--faint); }
+.day-cell { border-right: 1px solid var(--faint); border-bottom: 1px solid var(--faint); min-height: 100px; padding: 6px 5px 5px; vertical-align: top; position: relative; }
+.day-cell.other-month { background: rgba(0,0,0,0.015); }
+.day-cell.today { background: rgba(200,122,90,0.06); }
+.day-num { font-size: 10px; color: var(--muted); margin-bottom: 4px; line-height: 1; display: flex; align-items: center; justify-content: space-between; }
+.day-num.today-num { color: var(--hyrox); font-weight: 500; }
+.day-add-btn { font-size: 14px; line-height: 1; background: none; border: none; color: var(--faint); cursor: pointer; padding: 0; display: none; transition: color 0.1s; }
+.day-add-btn:hover { color: var(--ink); }
+.admin-mode .day-add-btn { display: block; }
+
+/* ── EVENT PILLS ── */
+.event-pill { border-radius: 3px; padding: 4px 6px; margin-bottom: 3px; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; position: relative; }
+.event-pill:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+.event-pill.hyrox   { background: var(--hyrox-light);  border-left: 2px solid var(--hyrox-mid); }
+.event-pill.run     { background: var(--run-light);    border-left: 2px solid var(--run-mid); }
+.event-pill.other   { background: var(--other-light);  border-left: 2px solid var(--other-mid); }
+.pill-time { font-size: 8px; opacity: 0.7; margin-bottom: 1px; }
+.event-pill.hyrox .pill-time    { color: var(--hyrox); }
+.event-pill.run .pill-time      { color: var(--run); }
+.event-pill.other .pill-time    { color: var(--other); }
+.pill-name { font-size: 9px; font-weight: 500; line-height: 1.2; letter-spacing: 0.2px; }
+.event-pill.hyrox .pill-name    { color: var(--hyrox); }
+.event-pill.run .pill-name      { color: var(--run); }
+.event-pill.other .pill-name    { color: var(--other); }
+.pill-loc { font-size: 8px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── MODALS ── */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.overlay.hidden { display: none; }
+.modal { background: var(--paper); border: 1px solid var(--faint); border-radius: 10px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal-head { padding: 20px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.modal-title-serif { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; font-style: italic; line-height: 1.2; }
+.modal-close { background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer; padding: 0; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.modal-close:hover { color: var(--ink); }
+.modal-body { padding: 16px 20px 20px; }
+
+/* Form fields */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 8px 10px; font-family: 'Geist Mono', monospace; font-size: 11px;
+  border: 1px solid var(--faint); border-radius: 3px; background: var(--paper2); color: var(--ink); outline: none; transition: border-color 0.12s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--ink); }
+.field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.type-opt { border: 1px solid var(--faint); border-radius: 3px; padding: 6px 4px; text-align: center; cursor: pointer; font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); transition: all 0.12s; }
+.type-opt:hover { border-color: var(--ink); color: var(--ink); }
+.type-opt.sel-hyrox    { background: var(--hyrox-light);  border-color: var(--hyrox-mid);  color: var(--hyrox); }
+.type-opt.sel-run      { background: var(--run-light);    border-color: var(--run-mid);    color: var(--run); }
+.type-opt.sel-other    { background: var(--other-light);  border-color: var(--other-mid);  color: var(--other); }
+.modal-btns { display: flex; gap: 8px; margin-top: 18px; }
+.btn-primary { flex: 1; padding: 9px; font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 3px; cursor: pointer; transition: opacity 0.12s; }
+.btn-primary:hover { opacity: 0.82; }
+.btn-secondary { flex: 1; padding: 9px; font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; cursor: pointer; transition: all 0.12s; }
+.btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
+.btn-danger { padding: 9px 14px; font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; background: transparent; color: #9B3A3A; border: 1px solid #E8AAAA; border-radius: 3px; cursor: pointer; transition: all 0.12s; }
+.btn-danger:hover { background: #FDF0F0; }
+
+/* ── EVENT DETAIL MODAL ── */
+.detail-type-badge { display: inline-block; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; margin-bottom: 10px; font-weight: 500; }
+.detail-type-badge.hyrox    { background: var(--hyrox-light);  color: var(--hyrox); }
+.detail-type-badge.run      { background: var(--run-light);    color: var(--run); }
+.detail-type-badge.other    { background: var(--other-light);  color: var(--other); }
+.detail-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--faint); font-size: 11px; align-items: flex-start; }
+.detail-row:last-child { border-bottom: none; }
+.detail-icon { width: 16px; flex-shrink: 0; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.detail-label { font-size: 8px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.detail-val { color: var(--ink); line-height: 1.5; }
+.detail-link { color: var(--run); text-decoration: none; word-break: break-all; }
+.detail-link:hover { text-decoration: underline; }
+.detail-notes { background: var(--paper2); border-radius: 3px; padding: 10px 12px; font-size: 10px; color: var(--ink); line-height: 1.7; margin-top: 8px; white-space: pre-wrap; }
+.join-btn { display: block; width: 100%; margin-top: 14px; padding: 11px; font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; background: var(--ink); color: var(--paper); border: none; border-radius: 3px; cursor: pointer; text-align: center; text-decoration: none; transition: opacity 0.12s; }
+.join-btn:hover { opacity: 0.8; }
+.no-url-note { font-size: 9px; color: var(--muted); text-align: center; margin-top: 10px; font-style: italic; }
+
+/* ── PASSWORD MODAL ── */
+.pin-input { text-align: center; font-size: 20px; letter-spacing: 6px; }
+.pin-hint { font-size: 9px; color: var(--muted); text-align: center; margin-top: 8px; font-style: italic; }
+.pin-error { font-size: 9px; color: #9B3A3A; text-align: center; margin-top: 6px; display: none; }
+
+/* ── EMPTY STATE ── */
+.empty-month { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-month-serif { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; font-style: italic; margin-bottom: 8px; }
+.empty-month-sub { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; }
+
+/* ── SHARE BAR ── */
+.share-bar { padding: 10px 28px; border-top: 1px solid var(--faint); display: flex; align-items: center; gap: 10px; background: var(--paper2); font-size: 9px; color: var(--muted); flex-wrap: wrap; }
+.share-url { flex: 1; font-family: 'Geist Mono', monospace; font-size: 9px; color: var(--ink); background: var(--paper); border: 1px solid var(--faint); border-radius: 3px; padding: 5px 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-btn { padding: 5px 10px; font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; border: 1px solid var(--faint); background: transparent; color: var(--muted); cursor: pointer; border-radius: 3px; transition: all 0.12s; white-space: nowrap; }
+.copy-btn:hover { border-color: var(--ink); color: var(--ink); }
+.copy-btn.copied { color: var(--run); border-color: var(--run-mid); }
+
+@media (max-width: 640px) {
+  header, .month-nav, .cal-wrap, .legend-bar, .share-bar { padding-left: 14px; padding-right: 14px; }
+  .day-cell { min-height: 64px; padding: 4px 3px; }
+  .pill-loc { display: none; }
+  .modal { max-width: 100%; border-radius: 12px 12px 0 0; position: fixed; bottom: 0; left: 0; right: 0; max-height: 85vh; }
+  .overlay { align-items: flex-end; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Hyrox Crew <span>Training Calendar</span></div>
+  <div class="header-right">
+    <span id="syncStatus" style="font-size:9px;letter-spacing:0.5px;color:var(--muted)">Connecting…</span><button class="admin-toggle" id="adminToggle" onclick="toggleAdmin()">Admin</button>
+    <button class="add-event-btn" id="addEventBtn" onclick="openAddModal()">+ Add event</button>
+  </div>
+</header>
+
+<div class="legend-bar">
+  <div class="leg"><div class="leg-dot" style="background:var(--hyrox-mid)"></div>Hyrox gym</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--run-mid)"></div>Run</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--other-mid)"></div>Other</div>
+</div>
+
+<div class="month-nav">
+  <button onclick="prevMonth()">← Prev</button>
+  <div class="month-label" id="monthLabel"></div>
+  <button class="today-btn" onclick="goToday()">Today</button>
+  <span class="event-count" id="eventCount"></span>
+  <button onclick="nextMonth()">Next →</button>
+</div>
+
+<div class="cal-wrap">
+  <div class="dow-header">
+    <div class="dow-cell">Mon</div><div class="dow-cell">Tue</div>
+    <div class="dow-cell">Wed</div><div class="dow-cell">Thu</div>
+    <div class="dow-cell">Fri</div><div class="dow-cell">Sat</div>
+    <div class="dow-cell">Sun</div>
+  </div>
+  <div class="month-grid" id="monthGrid"></div>
+</div>
+
+<div class="share-bar">
+  <span>Share with friends →</span>
+  <div class="share-url" id="shareUrl"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyLink()">Copy link</button>
+</div>
+
+<!-- ADD / EDIT EVENT MODAL -->
+<div class="overlay hidden" id="addOverlay" onclick="closeAddOutside(event)">
+  <div class="modal" id="addModal">
+    <div class="modal-head">
+      <div class="modal-title-serif" id="addModalTitle">Add training event</div>
+      <button class="modal-close" onclick="closeAdd()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Session type</label>
+        <div class="type-grid" style="grid-template-columns: repeat(3, 1fr)">
+          <div class="type-opt" data-type="hyrox" onclick="selectType('hyrox',this)">Hyrox gym</div>
+          <div class="type-opt" data-type="run" onclick="selectType('run',this)">Run</div>
+          <div class="type-opt" data-type="other" onclick="selectType('other',this)">Other</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Event name</label>
+        <input type="text" id="fName" placeholder="e.g. Hyrox Simulation · CrossFit Azabu">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="field">
+          <label>Time</label>
+          <input type="time" id="fTime" value="09:00">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Duration (min)</label>
+          <input type="number" id="fDur" placeholder="60" value="60">
+        </div>
+        <div class="field">
+          <label>Price (¥ or free)</label>
+          <input type="text" id="fPrice" placeholder="e.g. ¥3,000 or Free">
+        </div>
+      </div>
+      <div class="field">
+        <label>Location / Gym</label>
+        <input type="text" id="fLocation" placeholder="e.g. CrossFit Azabu, Minato-ku">
+      </div>
+      <div class="field">
+        <label>Sign-up / booking URL</label>
+        <input type="url" id="fUrl" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label>Notes (what to bring, what to expect…)</label>
+        <textarea id="fNotes" placeholder="e.g. Bring lifting shoes. SkiErg + sled push + row + farmer carry. All levels welcome."></textarea>
+      </div>
+      <div class="modal-btns" id="addModalBtns">
+        <button class="btn-secondary" onclick="closeAdd()">Cancel</button>
+        <button class="btn-primary" onclick="saveEvent()">Save event</button>
+      </div>
+      <div class="modal-btns" id="editModalBtns" style="display:none">
+        <button class="btn-danger" onclick="deleteEvent()">Delete</button>
+        <button class="btn-secondary" onclick="closeAdd()">Cancel</button>
+        <button class="btn-primary" onclick="saveEvent()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT DETAIL MODAL (friend view) -->
+<div class="overlay hidden" id="detailOverlay" onclick="closeDetailOutside(event)">
+  <div class="modal" id="detailModal">
+    <div class="modal-head">
+      <div>
+        <div class="detail-type-badge" id="detailBadge"></div>
+        <div class="modal-title-serif" id="detailTitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="detailRows"></div>
+      <div id="detailNotes"></div>
+      <a class="join-btn" id="detailJoinBtn" href="#" target="_blank" rel="noopener">Sign up / Book →</a>
+      <div class="no-url-note hidden" id="detailNoUrl">No booking link — ask Vivienne to join!</div>
+      <div id="adminEditRow" style="display:none;margin-top:10px">
+        <button class="btn-secondary" style="width:100%" onclick="editCurrentEvent()">✎ Edit this event</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PASSWORD MODAL -->
+<div class="overlay hidden" id="pinOverlay" onclick="closePinOutside(event)">
+  <div class="modal" style="max-width:300px">
+    <div class="modal-head">
+      <div class="modal-title-serif">Admin access</div>
+      <button class="modal-close" onclick="closePin()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Password</label>
+        <input type="password" class="pin-input" id="pinInput" placeholder="••••" onkeydown="if(event.key==='Enter')checkPin()">
+      </div>
+      <div class="pin-hint">Set your own password in the code (ADMIN_PASSWORD variable)</div>
+      <div class="pin-error" id="pinError">Incorrect password — try again</div>
+      <div class="modal-btns" style="margin-top:14px">
+        <button class="btn-secondary" onclick="closePin()">Cancel</button>
+        <button class="btn-primary" onclick="checkPin()">Unlock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }         from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, query, orderBy }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ─────────────────────────────────────────────────────────────
+// CONFIGURATION — change these
+// ─────────────────────────────────────────────────────────────
+const ADMIN_PASSWORD = 'hyrox2026';   // ← change to your own password
+const CALENDAR_TITLE = 'Hyrox Crew'; // ← shown in header
+
+// ── FIREBASE CONFIG ──────────────────────────────────────────
+// Paste your config from Firebase Console →
+// Project Settings → Your apps → SDK setup and configuration → Config
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD7zFh2ywKnLAV-rryAdlIYIJ5BEQdTs-0",
+  authDomain:        "hyrox-training-9eb47.firebaseapp.com",
+  projectId:         "hyrox-training-9eb47",
+  storageBucket:     "hyrox-training-9eb47.firebasestorage.app",
+  messagingSenderId: "274234273747",
+  appId:             "1:274234273747:web:452ea63bec590ffb994926"
+};
+
+// ─────────────────────────────────────────────────────────────
+// FIREBASE INIT
+// ─────────────────────────────────────────────────────────────
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getFirestore(app);
+const eventsCol = collection(db, 'hyrox_events');
+
+// ─────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────
+let events = [];
+let currentYear, currentMonth;
+let adminMode    = false;
+let editingId    = null;
+let selectedType = '';
+let detailEventId = null;
+
+const today = new Date();
+currentYear  = today.getFullYear();
+currentMonth = today.getMonth();
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const TYPE_LABELS = { hyrox:'Hyrox Gym', run:'Run', other:'Other' };
+
+// ─────────────────────────────────────────────────────────────
+// REAL-TIME LISTENER — syncs events across all devices instantly
+// ─────────────────────────────────────────────────────────────
+function startSync() {
+  setStatus('loading');
+  const q = query(eventsCol, orderBy('date'));
+  onSnapshot(q, (snapshot) => {
+    events = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    setStatus('live');
+    renderCalendar();
+  }, (err) => {
+    console.error('Firestore error:', err);
+    setStatus('error');
+  });
+}
+
+function setStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (state === 'loading') { el.textContent = 'Connecting…'; el.style.color = 'var(--muted)'; }
+  else if (state === 'live') { el.textContent = '● Live'; el.style.color = '#4A6741'; }
+  else { el.textContent = '⚠ Offline'; el.style.color = '#9B3A3A'; }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SAVE / DELETE — write to Firestore
+// ─────────────────────────────────────────────────────────────
+async function saveEventToDb(ev) {
+  const { id, ...data } = ev;
+  if (editingId) {
+    await setDoc(doc(db, 'hyrox_events', editingId), data);
+  } else {
+    await addDoc(eventsCol, data);
+  }
+}
+
+async function deleteEventFromDb(id) {
+  await deleteDoc(doc(db, 'hyrox_events', id));
+}
+
+// ─────────────────────────────────────────────────────────────
+// CALENDAR RENDER
+// ─────────────────────────────────────────────────────────────
+function renderCalendar() {
+  document.getElementById('monthLabel').textContent = MONTHS[currentMonth] + ' ' + currentYear;
+
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay  = new Date(currentYear, currentMonth + 1, 0);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+
+  const grid = document.getElementById('monthGrid');
+  grid.innerHTML = '';
+
+  const todayStr = toDateStr(today);
+
+  const monthEvents = events.filter(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+  const cnt = monthEvents.length;
+  document.getElementById('eventCount').textContent = cnt > 0 ? cnt + ' event' + (cnt!==1?'s':'') : '';
+
+  const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum  = i - startDow + 1;
+    const isThisMonth = dayNum >= 1 && dayNum <= lastDay.getDate();
+    const cellDate = new Date(currentYear, currentMonth, dayNum);
+    const dateStr  = toDateStr(cellDate);
+    const isToday  = dateStr === todayStr;
+
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' +
+      (!isThisMonth ? ' other-month' : '') +
+      (isToday ? ' today' : '');
+    cell.dataset.date = dateStr;
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'day-num' + (isToday ? ' today-num' : '');
+    numDiv.innerHTML = '<span>' + (isThisMonth ? dayNum : '') + '</span>' +
+      '<button class="day-add-btn" title="Add event" data-date="' + dateStr + '">+</button>';
+    numDiv.querySelector('.day-add-btn')?.addEventListener('click', () => openAddForDate(dateStr));
+    cell.appendChild(numDiv);
+
+    if (isThisMonth) {
+      const dayEvents = events
+        .filter(e => e.date === dateStr)
+        .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      dayEvents.forEach(ev => {
+        const pill = document.createElement('div');
+        pill.className = 'event-pill ' + (ev.type || 'other');
+        pill.dataset.id = ev.id;
+        pill.innerHTML =
+          '<div class="pill-time">' + formatTime(ev.time) + (ev.dur ? ' · ' + ev.dur + 'm' : '') + '</div>' +
+          '<div class="pill-name">' + esc(ev.name) + '</div>' +
+          (ev.location ? '<div class="pill-loc">' + esc(ev.location) + '</div>' : '');
+        pill.addEventListener('click', () => openDetail(ev.id));
+        cell.appendChild(pill);
+      });
+    }
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('shareUrl').textContent = window.location.href.split('?')[0];
+}
+
+// ─────────────────────────────────────────────────────────────
+// MONTH NAV
+// ─────────────────────────────────────────────────────────────
+function prevMonth() {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  renderCalendar();
+}
+function nextMonth() {
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  renderCalendar();
+}
+function goToday() {
+  currentYear  = today.getFullYear();
+  currentMonth = today.getMonth();
+  renderCalendar();
+}
+window.prevMonth = prevMonth;
+window.nextMonth = nextMonth;
+window.goToday   = goToday;
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────────────────────────
+function toggleAdmin() {
+  if (adminMode) {
+    adminMode = false;
+    document.body.classList.remove('admin-mode');
+    document.getElementById('adminToggle').classList.remove('on');
+    document.getElementById('addEventBtn').classList.remove('visible');
+    renderCalendar();
+    return;
+  }
+  if (sessionStorage.getItem('hyrox_admin') === '1') { enableAdmin(); }
+  else {
+    document.getElementById('pinOverlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('pinInput').focus(), 100);
+  }
+}
+function checkPin() {
+  const val = document.getElementById('pinInput').value;
+  if (val === ADMIN_PASSWORD) {
+    sessionStorage.setItem('hyrox_admin', '1');
+    closePin();
+    enableAdmin();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
+  }
+}
+function enableAdmin() {
+  adminMode = true;
+  document.body.classList.add('admin-mode');
+  document.getElementById('adminToggle').classList.add('on');
+  document.getElementById('addEventBtn').classList.add('visible');
+  renderCalendar();
+}
+function closePin() {
+  document.getElementById('pinOverlay').classList.add('hidden');
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+}
+function closePinOutside(e) { if(e.target===document.getElementById('pinOverlay')) closePin(); }
+window.toggleAdmin = toggleAdmin;
+window.checkPin    = checkPin;
+window.closePin    = closePin;
+window.closePinOutside = closePinOutside;
+
+// ─────────────────────────────────────────────────────────────
+// ADD / EDIT MODAL
+// ─────────────────────────────────────────────────────────────
+function openAddModal() {
+  editingId = null; selectedType = '';
+  document.getElementById('addModalTitle').textContent = 'Add training event';
+  document.getElementById('addModalBtns').style.display  = '';
+  document.getElementById('editModalBtns').style.display = 'none';
+  clearForm();
+  document.getElementById('fDate').value = toDateStr(today);
+  document.getElementById('addOverlay').classList.remove('hidden');
+}
+function openAddForDate(dateStr) {
+  if (!adminMode) return;
+  openAddModal();
+  document.getElementById('fDate').value = dateStr;
+}
+function closeAdd() {
+  document.getElementById('addOverlay').classList.add('hidden');
+  editingId = null;
+}
+function closeAddOutside(e) { if(e.target===document.getElementById('addOverlay')) closeAdd(); }
+
+function clearForm() {
+  ['fName','fPrice','fLocation','fUrl','fNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fDate').value = '';
+  document.getElementById('fTime').value = '09:00';
+  document.getElementById('fDur').value  = '60';
+  selectedType = '';
+  document.querySelectorAll('.type-opt').forEach(o => o.className = 'type-opt');
+}
+
+function selectType(type, el) {
+  selectedType = type;
+  document.querySelectorAll('.type-opt').forEach(o => o.className = 'type-opt');
+  el.className = 'type-opt sel-' + type;
+}
+
+async function saveEvent() {
+  const name = document.getElementById('fName').value.trim();
+  const date = document.getElementById('fDate').value;
+  if (!name) { document.getElementById('fName').focus(); return; }
+  if (!date) { document.getElementById('fDate').focus(); return; }
+  if (!selectedType) { alert('Please select a session type.'); return; }
+
+  const btn = document.querySelector('#addModalBtns .btn-primary, #editModalBtns .btn-primary');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
+  const ev = {
+    type:     selectedType,
+    name,
+    date,
+    time:     document.getElementById('fTime').value || '09:00',
+    dur:      parseInt(document.getElementById('fDur').value) || 60,
+    price:    document.getElementById('fPrice').value.trim(),
+    location: document.getElementById('fLocation').value.trim(),
+    url:      document.getElementById('fUrl').value.trim(),
+    notes:    document.getElementById('fNotes').value.trim(),
+  };
+
+  try {
+    await saveEventToDb({ id: editingId, ...ev });
+    closeAdd();
+  } catch(err) {
+    alert('Error saving: ' + err.message);
+    if (btn) { btn.textContent = editingId ? 'Update' : 'Save event'; btn.disabled = false; }
+  }
+}
+
+async function deleteEvent() {
+  if (!editingId) return;
+  if (!confirm('Delete this event?')) return;
+  try {
+    await deleteEventFromDb(editingId);
+    closeAdd();
+  } catch(err) { alert('Error deleting: ' + err.message); }
+}
+
+window.openAddModal   = openAddModal;
+window.closeAdd       = closeAdd;
+window.closeAddOutside = closeAddOutside;
+window.selectType     = selectType;
+window.saveEvent      = saveEvent;
+window.deleteEvent    = deleteEvent;
+
+// ─────────────────────────────────────────────────────────────
+// EVENT DETAIL MODAL
+// ─────────────────────────────────────────────────────────────
+function openDetail(id) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  detailEventId = id;
+
+  document.getElementById('detailBadge').className = 'detail-type-badge ' + ev.type;
+  document.getElementById('detailBadge').textContent = TYPE_LABELS[ev.type] || ev.type;
+  document.getElementById('detailTitle').textContent = ev.name;
+
+  const rows = [];
+  rows.push(detailRow('📅','Date', formatDateLong(ev.date)));
+  rows.push(detailRow('🕐','Time', formatTime(ev.time) + (ev.dur ? ' · ' + ev.dur + ' min' : '')));
+  if (ev.location) rows.push(detailRow('📍','Location', esc(ev.location)));
+  if (ev.price)    rows.push(detailRow('💴','Price',    esc(ev.price)));
+  document.getElementById('detailRows').innerHTML = rows.join('');
+
+  const notesEl = document.getElementById('detailNotes');
+  notesEl.innerHTML = ev.notes
+    ? '<div class="detail-notes">' + esc(ev.notes) + '</div>' : '';
+
+  const joinBtn = document.getElementById('detailJoinBtn');
+  const noUrl   = document.getElementById('detailNoUrl');
+  if (ev.url) {
+    joinBtn.href = ev.url;
+    joinBtn.classList.remove('hidden');
+    noUrl.classList.add('hidden');
+  } else {
+    joinBtn.classList.add('hidden');
+    noUrl.classList.remove('hidden');
+  }
+
+  document.getElementById('adminEditRow').style.display = adminMode ? '' : 'none';
+  document.getElementById('detailOverlay').classList.remove('hidden');
+}
+
+function detailRow(icon, label, val) {
+  return '<div class="detail-row"><div class="detail-icon">' + icon + '</div><div><div class="detail-label">' + label + '</div><div class="detail-val">' + val + '</div></div></div>';
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.add('hidden');
+  detailEventId = null;
+}
+function closeDetailOutside(e) { if(e.target===document.getElementById('detailOverlay')) closeDetail(); }
+
+function editCurrentEvent() {
+  const id = detailEventId;
+  closeDetail();
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+
+  editingId = id;
+  document.getElementById('addModalTitle').textContent = 'Edit event';
+  document.getElementById('addModalBtns').style.display  = 'none';
+  document.getElementById('editModalBtns').style.display = '';
+
+  selectedType = ev.type;
+  document.querySelectorAll('.type-opt').forEach(o => {
+    o.className = 'type-opt' + (o.dataset.type === ev.type ? ' sel-' + ev.type : '');
+  });
+  document.getElementById('fName').value     = ev.name;
+  document.getElementById('fDate').value     = ev.date;
+  document.getElementById('fTime').value     = ev.time;
+  document.getElementById('fDur').value      = ev.dur || 60;
+  document.getElementById('fPrice').value    = ev.price    || '';
+  document.getElementById('fLocation').value = ev.location || '';
+  document.getElementById('fUrl').value      = ev.url      || '';
+  document.getElementById('fNotes').value    = ev.notes    || '';
+
+  document.getElementById('addOverlay').classList.remove('hidden');
+}
+
+window.closeDetail       = closeDetail;
+window.closeDetailOutside = closeDetailOutside;
+window.editCurrentEvent  = editCurrentEvent;
+
+// ─────────────────────────────────────────────────────────────
+// SHARE
+// ─────────────────────────────────────────────────────────────
+function copyLink() {
+  const url = window.location.href.split('?')[0];
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+window.copyLink = copyLink;
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+function toDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function formatTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hh = parseInt(h);
+  const ampm = hh >= 12 ? 'pm' : 'am';
+  const h12 = hh % 12 || 12;
+  return h12 + ':' + m + ampm;
+}
+function formatDateLong(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return days[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
+if (sessionStorage.getItem('hyrox_admin') === '1') {
+  adminMode = true;
+  document.body.classList.add('admin-mode');
+  document.getElementById('adminToggle').classList.add('on');
+  document.getElementById('addEventBtn').classList.add('visible');
+}
+
+startSync(); // connects to Firebase and renders calendar in real time
+</script>
+</body>
+</html>
